@@ -75,7 +75,7 @@ const HomePage = () => {
       </motion.section>
 
       <section className="container mx-auto px-4">
-        <h2 className="text-4xl font-bold text-center mb-12 text-primary">لماذا تختار رايت واتر؟</h2>
+        <h2 className="text-4xl font-bold text-center mb-12 text-primary">لماذا تختار رايت ووتر؟</h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
           <FeatureCard 
             icon={<Droplets size={40} />} 

@@ -17,7 +17,7 @@ const Footer = () => {
         <div>
           <div className="flex items-center justify-center md:justify-start mb-4">
             <Droplets size={32} className="mr-2" />
-            <span className="text-2xl font-bold">رايت واتر</span>
+            <span className="text-2xl font-bold">رايت ووتر</span>
           </div>
           <p className="text-sm text-blue-100">
             نلتزم بتوفير أنظمة معالجة مياه وحلول شرب صحية عالية الجودة لضمان حياة أفضل.
@@ -50,7 +50,7 @@ const Footer = () => {
         </div>
       </div>
       <div className="mt-8 pt-8 border-t border-water-blue-light/30 text-center text-sm text-blue-100">
-        <p>&copy; {currentYear} شركة رايت واتر. جميع الحقوق محفوظة. العملة: جنيه مصري (EGP)</p>
+        <p>&copy; {currentYear} شركة رايت ووتر. جميع الحقوق محفوظة. العملة: جنيه مصري (EGP)</p>
       </div>
     </motion.footer>
   );

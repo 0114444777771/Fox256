@@ -53,7 +53,7 @@ const Navbar = () => {
       <div className="container mx-auto flex items-center justify-between">
         <Link to="/" className="flex items-center space-x-2 text-white hover:opacity-90 transition-opacity" aria-label="الصفحة الرئيسية">
           <Droplets size={36} className="text-white" />
-          <h1 className="text-2xl font-bold tracking-tight">رايت واتر</h1>
+          <h1 className="text-2xl font-bold tracking-tight">رايت ووتر</h1>
         </Link>
         <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-4">
           <Link to="/products">

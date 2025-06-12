@@ -211,7 +211,7 @@ const ContactPage = () => {
             allowFullScreen=""
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
-            title="موقع شركة رايت واتر"
+            title="موقع شركة رايت ووتر"
           ></iframe>
         </div>
          <div className="text-center mt-4">
