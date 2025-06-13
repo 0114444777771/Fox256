@@ -1,159 +1,131 @@
-// src/contexts/AuthContext.js
+// src/contexts/AuthContext.jsx (النسخة النهائية والمعدلة)
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { 
-  onAuthStateChanged, 
-  signOut as firebaseSignOut, 
+import {
+  onAuthStateChanged,
+  signOut as firebaseSignOut,
   sendPasswordResetEmail,
   updatePassword as firebaseUpdatePassword,
   reauthenticateWithCredential,
   EmailAuthProvider,
   updateProfile,
-  // 1. استيراد الدوال الجديدة لإنشاء الحساب وتسجيل الدخول
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword
 } from 'firebase/auth';
-import { 
-  doc, 
-  getDoc, 
-  // 2. استيراد الدوال اللازمة لإنشاء مستند جديد في قاعدة البيانات
-  setDoc, 
-  serverTimestamp 
-} from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/firebase';
 import { Loader2 } from 'lucide-react';
 
-// إنشاء الـ Context
 const AuthContext = createContext();
 
-// Hook مخصص لتسهيل استخدام الـ Context
 export function useAuth() {
   return useContext(AuthContext);
 }
 
-// المكون الرئيسي للـ Provider
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // حالة تحميل واحدة شاملة
 
-  // مراقبة حالة تسجيل دخول المستخدم (هذا الكود كما هو وممتاز)
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-
+      setLoading(true); // نبدأ التحميل عند تغير حالة المستخدم
       if (user) {
-        // التحقق إذا كان المستخدم هو admin
+        // إذا وجد مستخدم، نقوم بتعيينه وجلب صلاحياته
+        setCurrentUser(user);
         try {
-          const adminDoc = await getDoc(doc(db, "admins", user.uid));
-          setIsAdmin(adminDoc.exists());
+          // 🔥🔥 الكود الأساسي للتحقق من صلاحيات الأدمن 🔥🔥
+          // نجلب الـ ID token الخاص بالمستخدم ونجبره على التحديث
+          // هذا يضمن أننا نحصل على أحدث Custom Claims
+          const idTokenResult = await user.getIdTokenResult(true);
+          
+          // نتحقق من وجود claim اسمه admin وقيمته true
+          setIsAdmin(!!idTokenResult.claims.admin);
+          
         } catch (error) {
-          console.error("خطأ في التحقق من الصلاحيات:", error);
+          console.error("خطأ في التحقق من صلاحيات الأدمن:", error);
           setIsAdmin(false);
         }
       } else {
+        // إذا لم يكن هناك مستخدم، نعيد كل شيء لوضعه الافتراضي
+        setCurrentUser(null);
         setIsAdmin(false);
       }
-
-      setLoading(false);
+      setLoading(false); // انتهى التحميل
     });
 
     return () => unsubscribe();
   }, []);
 
-  // --- الدوال الجديدة ---
-
-  /**
-   * دالة لإنشاء حساب مستخدم جديد
-   * تقوم بإنشاء الحساب في Firebase Auth ثم إنشاء مستند له في Firestore
-   */
+  // --- دوال المصادقة (لا يوجد تغيير هنا) ---
   const signUp = async (email, password, displayName) => {
-    // الخطوة 1: إنشاء المستخدم في خدمة Authentication
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
-
-    // الخطوة 2: تحديث اسم المستخدم في ملفه الشخصي داخل Auth
     await updateProfile(user, { displayName });
-
-    // الخطوة 3 (الحل الأهم): إنشاء مستند للمستخدم في مجموعة 'users' في Firestore
     await setDoc(doc(db, "users", user.uid), {
       uid: user.uid,
       displayName: displayName,
       email: user.email,
-      createdAt: serverTimestamp(), // يسجل وقت إنشاء الحساب
-      role: 'user'                  // يمكن تحديد دور افتراضي للمستخدم
+      createdAt: serverTimestamp(),
+      role: 'user' // تعيين دور افتراضي
     });
-    
-    // تحديث الحالة المحلية فوراً لتعكس بيانات المستخدم الجديد كاملة
-    setCurrentUser(auth.currentUser);
-
+    // لا حاجة لـ setCurrentUser هنا، onAuthStateChanged ستقوم بذلك
     return user;
   };
 
-  /**
-   * دالة لتسجيل دخول مستخدم موجود بالفعل
-   */
   const signIn = (email, password) => {
     return signInWithEmailAndPassword(auth, email, password);
   };
 
-
-  // --- الدوال القديمة (كما هي) ---
   const signOut = () => {
     return firebaseSignOut(auth);
   };
 
   const sendPasswordReset = (email) => {
-    return sendPasswordResetEmail(auth, email);
-  };
-
-  const updateUserPassword = (newPassword) => {
-    if (!currentUser) return Promise.reject(new Error("لا يوجد مستخدم حالياً."));
-    return firebaseUpdatePassword(currentUser, newPassword);
-  };
-
-  const reauthenticateUser = (currentPassword) => {
-    if (!currentUser) return Promise.reject(new Error("لا يوجد مستخدم حالياً."));
-    const credential = EmailAuthProvider.credential(currentUser.email, currentPassword);
-    return reauthenticateWithCredential(currentUser, credential);
+    return sendPasswordResetEmail(auth, email, {
+      url: `${window.location.origin}/login`
+    });
   };
 
   const updateUserProfile = async (updates) => {
-    if (!currentUser) return Promise.reject(new Error("لا يوجد مستخدم حالياً."));
+    if (!currentUser) return Promise.reject(new Error("No user is currently signed in."));
     await updateProfile(currentUser, updates);
-    // تحديث حالة المستخدم الحالية بعد التعديل لضمان تزامن البيانات
     setCurrentUser({ ...auth.currentUser });
   };
+  
+  const reauthenticateAndChangePassword = async (currentPassword, newPassword) => {
+    if (!currentUser) throw new Error("No user is currently signed in.");
+    const credential = EmailAuthProvider.credential(currentUser.email, currentPassword);
+    await reauthenticateWithCredential(currentUser, credential);
+    await firebaseUpdatePassword(currentUser, newPassword);
+  };
 
-
-  // تجميع كل القيم والدوال لمشاركتها عبر الـ Context
+  // تجميع كل القيم والدوال
   const value = {
     currentUser,
     isAdmin,
     loading,
-    signUp, // <-- تمت الإضافة
-    signIn, // <-- تمت الإضافة
+    signUp,
+    signIn,
     signOut,
     sendPasswordReset,
-    updateUserPassword,
-    reauthenticateUser,
     updateUserProfile,
+    reauthenticateAndChangePassword,
   };
 
-  // عرض شاشة تحميل أثناء جلب بيانات المستخدم
-  if (loading) {
+  // لا نعرض أي شيء أثناء التحميل الأولي
+  if (loading && !currentUser) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
-        <p className="ml-4 text-xl text-foreground">جاري تحميل بيانات المستخدم...</p>
+        <p className="ml-4 text-xl text-foreground">جاري التحميل...</p>
       </div>
     );
   }
 
-  // إتاحة الـ Context للتطبيقات الفرعية
   return (
     <AuthContext.Provider value={value}>
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 }

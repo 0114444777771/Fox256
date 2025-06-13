@@ -1,66 +1,35 @@
-import React, { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+// src/components/ProtectedRoute.jsx (النسخة النهائية)
+
+import React from 'react';
+import { Navigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
 
-const ProtectedRoute = ({ children, adminOnly = false }) => {
-  const { currentUser, loading } = useAuth();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [checkingAdmin, setCheckingAdmin] = useState(true);
+const ProtectedRoute = ({ adminOnly = false }) => {
+  const { currentUser, isAdmin, loading } = useAuth();
+  const location = useLocation();
 
-  useEffect(() => {
-    if (!adminOnly) {
-      setCheckingAdmin(false);
-      return;
-    }
-
-    if (!currentUser) {
-      setCheckingAdmin(false);
-      return;
-    }
-
-    const checkAdminStatus = async () => {
-      try {
-        const db = getFirestore();
-        const adminDocRef = doc(db, 'admins', currentUser.uid);
-        const adminDocSnap = await getDoc(adminDocRef);
-
-        if (adminDocSnap.exists()) {
-          const data = adminDocSnap.data();
-          setIsAdmin(data.role === 'admin');  // تأكد أن الدور admin
-        } else {
-          setIsAdmin(false);
-        }
-      } catch (error) {
-        console.error('خطأ في التحقق من صلاحية الأدمن:', error);
-        setIsAdmin(false);
-      } finally {
-        setCheckingAdmin(false);
-      }
-    };
-
-    checkAdminStatus();
-  }, [adminOnly, currentUser]);
-
-  if (loading || checkingAdmin) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-background">
+      <div className="flex flex-col items-center justify-center h-screen bg-background">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
-        <p className="ml-4 text-xl text-foreground">جاري التحقق من صلاحيات الدخول...</p>
+        <p className="mt-4 text-xl text-foreground">جاري التحقق...</p>
       </div>
     );
   }
 
+  // إذا لم يكن هناك مستخدم مسجل، اذهب لصفحة الدخول
   if (!currentUser) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // إذا كانت الصفحة للأدمن فقط والمستخدم الحالي ليس أدمن، اذهب للصفحة الرئيسية
   if (adminOnly && !isAdmin) {
     return <Navigate to="/" replace />;
   }
-
-  return <>{children}</>;
+  
+  // إذا تم تجاوز كل عمليات التحقق، اعرض المكونات الفرعية
+  return <Outlet />; 
 };
 
 export default ProtectedRoute;

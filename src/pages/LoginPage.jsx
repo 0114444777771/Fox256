@@ -1,15 +1,18 @@
+// src/pages/LoginPage.jsx
 
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button.jsx';
+import { Input } from '@/components/ui/input.jsx';
+import { Label } from '@/components/ui/label.jsx';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card.jsx';
 import { useToast } from '@/components/ui/use-toast';
-import { auth, googleProvider, facebookProvider, twitterProvider } from '@/firebase'; // Ensure twitterProvider is exported if used
+import { auth, googleProvider, facebookProvider, twitterProvider } from '@/firebase';
 import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { LogIn, Mail, KeyRound, Chrome, Facebook as FacebookIcon, Twitter as TwitterIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+import webFoxLogo from '@/assets/web-fox-logo.png'; 
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -22,21 +25,23 @@ const LoginPage = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // 🔥🔥 تعديل صغير للتحقق من صلاحيات الأدمن بشكل صحيح 🔥🔥
+      const idTokenResult = await userCredential.user.getIdTokenResult();
       toast({
         title: "تم تسجيل الدخول بنجاح!",
         description: "مرحباً بعودتك.",
       });
-      // Check if admin to redirect to admin panel, otherwise to profile or home
-      if (email.toLowerCase() === 'admin@rightwater.com' || email.toLowerCase() === 'testadmin@example.com') {
+      // التحقق من صلاحيات الأدمن من الـ claims
+      if (idTokenResult.claims.admin) {
         navigate('/admin');
       } else {
-        navigate('/profile'); // Or '/'
+        navigate('/profile');
       }
     } catch (error) {
       toast({
         title: "فشل تسجيل الدخول",
-        description: error.message === "Firebase: Error (auth/invalid-credential)." ? "البريد الإلكتروني أو كلمة المرور غير صحيحة." : error.message,
+        description: error.code === 'auth/invalid-credential' ? "البريد الإلكتروني أو كلمة المرور غير صحيحة." : error.message,
         variant: "destructive",
       });
     }
@@ -46,17 +51,11 @@ const LoginPage = () => {
   const handleSocialLogin = async (provider) => {
     setLoading(true);
     try {
-      const result = await signInWithPopup(auth, provider);
-      toast({
-        title: "تم تسجيل الدخول بنجاح!",
-        description: `مرحباً ${result.user.displayName || result.user.email}!`,
-      });
-      // Check if admin (less likely with social, but for consistency)
-      if (result.user.email && (result.user.email.toLowerCase() === 'admin@rightwater.com' || result.user.email.toLowerCase() === 'testadmin@example.com')) {
-        navigate('/admin');
-      } else {
-        navigate('/profile'); // Or '/'
-      }
+      await signInWithPopup(auth, provider);
+      // بعد تسجيل الدخول الاجتماعي، سيقوم AuthProvider بتوجيه المستخدم
+      // لا داعي لكتابة الكود هنا، لأنه سيتم التعامل معه في onAuthStateChanged
+      toast({ title: "تم تسجيل الدخول بنجاح!" });
+      navigate('/profile'); // توجيه افتراضي
     } catch (error) {
       toast({
         title: "فشل تسجيل الدخول الاجتماعي",
@@ -73,7 +72,7 @@ const LoginPage = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="flex items-center justify-center min-h-[calc(100vh-200px)] bg-gradient-to-br from-water-blue/10 to-water-green/5 p-4"
+      className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] p-4"
     >
       <Card className="w-full max-w-md shadow-2xl glassmorphism-card">
         <CardHeader className="text-center">
@@ -94,30 +93,14 @@ const LoginPage = () => {
               <Label htmlFor="email">البريد الإلكتروني</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="example@mail.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="pl-10"
-                />
+                <Input id="email" type="email" placeholder="example@mail.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="pl-10"/>
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">كلمة المرور</Label>
                <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="********"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="pl-10"
-                />
+                <Input id="password" type="password" placeholder="********" value={password} onChange={(e) => setPassword(e.target.value)} required className="pl-10"/>
               </div>
             </div>
             <Button type="submit" className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-lg" disabled={loading}>
@@ -125,41 +108,32 @@ const LoginPage = () => {
             </Button>
           </form>
           <div className="mt-6 relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                أو سجل الدخول باستخدام
-              </span>
-            </div>
+            <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+            <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">أو سجل الدخول باستخدام</span></div>
           </div>
           <div className="mt-6 grid grid-cols-3 gap-3">
-            <Button variant="outline" onClick={() => handleSocialLogin(googleProvider)} disabled={loading}>
-              <Chrome className="mr-2 h-4 w-4" /> Google
-            </Button>
-            <Button variant="outline" onClick={() => handleSocialLogin(facebookProvider)} disabled={loading}>
-              <FacebookIcon className="mr-2 h-4 w-4" /> Facebook
-            </Button>
-             <Button variant="outline" onClick={() => handleSocialLogin(twitterProvider)} disabled={loading}>
-              <TwitterIcon className="mr-2 h-4 w-4" /> Twitter
-            </Button>
+            <Button variant="outline" onClick={() => handleSocialLogin(googleProvider)} disabled={loading}><Chrome className="mr-2 h-4 w-4" /> Google</Button>
+            <Button variant="outline" onClick={() => handleSocialLogin(facebookProvider)} disabled={loading}><FacebookIcon className="mr-2 h-4 w-4" /> Facebook</Button>
+            <Button variant="outline" onClick={() => handleSocialLogin(twitterProvider)} disabled={loading}><TwitterIcon className="mr-2 h-4 w-4" /> Twitter</Button>
           </div>
         </CardContent>
         <CardFooter className="flex flex-col items-center space-y-2">
-          <Link to="/forgot-password">
-            <Button variant="link" className="text-sm text-primary">
-              هل نسيت كلمة المرور؟
-            </Button>
-          </Link>
-          <p className="text-sm text-muted-foreground">
-            ليس لديك حساب؟{' '}
-            <Link to="/signup" className="font-medium text-primary hover:underline">
-              أنشئ حساباً جديداً
-            </Link>
-          </p>
+          <Link to="/forgot-password"><Button variant="link" className="text-sm text-primary">هل نسيت كلمة المرور؟</Button></Link>
+          <p className="text-sm text-muted-foreground">ليس لديك حساب؟{' '}<Link to="/signup" className="font-medium text-primary hover:underline">أنشئ حساباً جديداً</Link></p>
         </CardFooter>
       </Card>
+      
+      {/* 🔥🔥 التعديل الجديد هنا 🔥🔥 */}
+      <div className="mt-8 text-center">
+        <img src={webFoxLogo} alt="Web Fox Logo" className="w-20 h-20 opacity-80 mx-auto" />
+        <p className="text-sm text-muted-foreground font-medium mt-2">
+          تم تصميم الموقع تحت إشراف
+        </p>
+        <p className="text-lg text-foreground font-semibold">
+          Mohammed Nasser
+        </p>
+      </div>
+
     </motion.div>
   );
 };

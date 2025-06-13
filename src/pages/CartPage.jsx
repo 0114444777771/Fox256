@@ -1,170 +1,203 @@
+// src/pages/CartPage.jsx
 
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useCart } from '@/contexts/CartContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { toast } from '@/components/ui/use-toast';
-import { motion } from 'framer-motion';
-import { ShoppingCart, Trash2, Plus, Minus, XCircle, CreditCard, ArrowLeft } from 'lucide-react';
-import { formatPrice } from '@/lib/orderUtils';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Trash2, PlusCircle, MinusCircle, ShoppingCart, ArrowLeft, CreditCard, PackageX } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useToast } from '@/components/ui/use-toast';
+import { useCart } from '@/contexts/CartContext';
+
 
 const CartPage = () => {
-  const { cartItems, removeFromCart, updateQuantity, getSubtotal, getTotal, clearCart, shippingCost } = useCart();
+  const { cartItems, updateItemQuantity, removeItemFromCart, cartTotal } = useCart();
+  const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleQuantityChange = (productId, currentQuantity, change) => {
-    const newQuantity = currentQuantity + change;
-    if (newQuantity < 1) {
-      updateQuantity(productId, 1);
-    } else {
-      updateQuantity(productId, newQuantity);
-    }
-  };
-  
-  const handleDirectQuantityInput = (productId, value) => {
-    const newQuantity = parseInt(value, 10);
-    if (isNaN(newQuantity) || newQuantity < 1) {
-      updateQuantity(productId, 1); 
-    } else {
-      updateQuantity(productId, newQuantity);
-    }
-  };
+  const shippingCost = cartTotal > 0 ? 50 : 0; 
+  const totalWithShipping = cartTotal + shippingCost;
 
-  const subtotal = getSubtotal();
-  const total = getTotal();
+  // --- بداية التعديل ---
+  // تم تعديل هذه الدالة بالكامل
+  const handleCheckout = () => {
+    if (cartItems.length === 0) {
+      toast({
+        title: "سلة التسوق فارغة",
+        description: "الرجاء إضافة منتجات إلى السلة قبل المتابعة للدفع.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const itemsExceedingStock = cartItems.filter(item => item.quantity > item.stock);
+    if (itemsExceedingStock.length > 0) {
+        toast({
+            title: "كمية غير متوفرة",
+            description: `يرجى تعديل الكميات لـ: ${itemsExceedingStock.map(i => i.name).join(', ')}. المخزون المتاح أقل من المطلوب.`,
+            variant: "destructive",
+        });
+        return;
+    }
 
-  if (cartItems.length === 0) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center min-h-[70vh] flex flex-col items-center justify-center"
-      >
-        <ShoppingCart size={80} className="text-sky-300 dark:text-sky-600 mb-8 animate-bounce" />
-        <h1 className="text-4xl font-bold text-slate-700 dark:text-slate-200 mb-4">سلة التسوق فارغة</h1>
-        <p className="text-lg text-slate-500 dark:text-slate-400 mb-8">
-          لم تقم بإضافة أي منتجات إلى سلتك بعد. ابدأ التسوق الآن!
-        </p>
-        <Button asChild size="lg" className="bg-sky-500 hover:bg-sky-600 text-white btn-glow">
-          <Link to="/products">
-            <ArrowLeft className="mr-2 rtl:ml-2 rtl:mr-0 h-5 w-5" />
-            العودة إلى المنتجات
-          </Link>
-        </Button>
-      </motion.div>
-    );
-  }
+    // هنا نقوم بتمرير كل البيانات بشكل منفصل لصفحة الدفع
+    navigate('/checkout', { 
+      state: { 
+        cartItems: cartItems, 
+        subtotal: cartTotal,      // المجموع الفرعي
+        shippingCost: shippingCost, // تكلفة الشحن
+        total: totalWithShipping, // الإجمالي الكلي
+        fromCart: true 
+      } 
+    });
+  };
+  // --- نهاية التعديل ---
 
   return (
-    <div className="bg-slate-50 dark:bg-slate-900 min-h-screen py-12">
+    <div className="container mx-auto px-4 py-12">
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.6 }}
-        className="container mx-auto px-4 sm:px-6 lg:px-8"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="mb-10 text-center"
       >
-        <h1 className="text-4xl font-extrabold text-center text-sky-600 dark:text-sky-400 mb-10">سلة التسوق</h1>
-        
-        <div className="lg:flex lg:space-x-8 rtl:lg:space-x-reverse">
-          <motion.div 
-            initial={{ opacity: 0, x: -50 }}
+        <h1 className="text-5xl font-extrabold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+          <ShoppingCart className="inline-block h-12 w-12 mr-3" /> سلة التسوق
+        </h1>
+        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          راجع طلبك وقم بإجراء التعديلات اللازمة قبل المتابعة إلى الدفع.
+        </p>
+      </motion.div>
+
+      {cartItems.length === 0 ? (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+          className="text-center py-16"
+        >
+          <img alt="سلة تسوق فارغة" className="mx-auto w-64 h-64 mb-6 opacity-70" src="https://images.unsplash.com/photo-1641833278434-50f92b93d65a" />
+          <h2 className="text-3xl font-semibold text-foreground mb-4">سلة التسوق فارغة!</h2>
+          <p className="text-muted-foreground mb-8">
+            لم تقم بإضافة أي منتجات إلى سلتك بعد. تصفح منتجاتنا الرائعة!
+          </p>
+          <Link to="/products">
+            <Button size="lg" className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-opacity">
+              <ShoppingCart className="ml-2 h-5 w-5" /> تصفح المنتجات
+            </Button>
+          </Link>
+        </motion.div>
+      ) : (
+        <div className="grid lg:grid-cols-3 gap-8 items-start">
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="lg:w-2/3 space-y-6 mb-8 lg:mb-0"
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="lg:col-span-2 space-y-6"
           >
-            {cartItems.map((item, index) => (
-              <motion.div
-                key={item.id}
-                layout
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: index * 0.1 }}
-                className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6 rtl:sm:space-x-reverse"
-              >
-                <img 
-                  src={item.imageUrl || 'https://via.placeholder.com/100x100'}
-                  alt={item.name}
-                  className="w-24 h-24 object-cover rounded-lg border border-slate-200 dark:border-slate-700"
-                 />
-                <div className="flex-grow text-center sm:text-right rtl:sm:text-left">
-                  <Link to={`/products/${item.id}`} className="text-lg font-semibold text-sky-700 dark:text-sky-300 hover:underline">{item.name}</Link>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">{formatPrice(item.price)}</p>
-                </div>
-                <div className="flex items-center space-x-3 rtl:space-x-reverse">
-                  <Button variant="outline" size="icon" onClick={() => handleQuantityChange(item.id, item.quantity, -1)} disabled={item.quantity <= 1} className="h-8 w-8 border-sky-300 text-sky-500 hover:bg-sky-50">
-                    <Minus size={16} />
-                  </Button>
-                  <Input
-                    type="number"
-                    value={item.quantity}
-                    onChange={(e) => handleDirectQuantityInput(item.id, e.target.value)}
-                    className="w-16 h-8 text-center dark:bg-slate-700 dark:border-slate-600"
-                    min="1"
-                  />
-                  <Button variant="outline" size="icon" onClick={() => handleQuantityChange(item.id, item.quantity, 1)} className="h-8 w-8 border-sky-300 text-sky-500 hover:bg-sky-50">
-                    <Plus size={16} />
-                  </Button>
-                </div>
-                <p className="font-semibold text-slate-700 dark:text-slate-200 w-24 text-center sm:text-left rtl:sm:text-right">
-                  {formatPrice(item.price * item.quantity)}
-                </p>
-                <Button variant="ghost" size="icon" onClick={() => removeFromCart(item.id)} className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20" aria-label="حذف المنتج">
-                  <Trash2 size={20} />
-                </Button>
-              </motion.div>
-            ))}
-            {cartItems.length > 0 && (
-              <motion.div 
-                className="mt-6 flex justify-end"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: cartItems.length * 0.1 + 0.2 }}
-              >
-                <Button variant="destructive" onClick={clearCart} className="bg-red-500 hover:bg-red-600 text-white">
-                  <XCircle size={18} className="mr-2 rtl:ml-2 rtl:mr-0" />
-                  تفريغ السلة
-                </Button>
-              </motion.div>
-            )}
+            <AnimatePresence>
+              {cartItems.map(item => (
+                <motion.div
+                  key={item.id}
+                  layout
+                  initial={{ opacity: 0, x: -50 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 50, transition: { duration: 0.3 } }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                >
+                  <Card className="flex flex-col sm:flex-row items-center p-4 glassmorphism-card overflow-hidden">
+                    <img
+                      src={item.image || "https://images.unsplash.com/photo-1600857080039-639f0a2c6f93?auto=format&fit=crop&w=100&q=60"}
+                      alt={item.name}
+                      className="w-24 h-24 object-cover rounded-md mb-4 sm:mb-0 sm:mr-4 sm:ml-4"
+                    />
+                    <div className="flex-grow text-center sm:text-right">
+                      <Link to={`/products/${item.id}`}>
+                        <h3 className="text-lg font-semibold text-primary hover:underline">{item.name}</h3>
+                      </Link>
+                      <p className="text-sm text-muted-foreground">
+                        السعر: {(item.price || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}
+                      </p>
+                       {item.stock <= 0 && <p className="text-xs text-red-500 flex items-center justify-center sm:justify-start"><PackageX className="ml-1 h-3 w-3"/> نفذ المخزون</p>}
+                       {item.stock > 0 && item.quantity > item.stock && <p className="text-xs text-red-500">الكمية المطلوبة تتجاوز المخزون ({item.stock})</p>}
+                    </div>
+                    <div className="flex items-center space-x-3 space-x-reverse my-4 sm:my-0 sm:mx-4">
+                      <Button variant="ghost" size="icon" onClick={() => updateItemQuantity(item.id, item.quantity - 1)} disabled={item.quantity <= 1}>
+                        <MinusCircle className="h-5 w-5 text-primary" />
+                      </Button>
+                      <Input
+                        type="number"
+                        value={item.quantity}
+                        onChange={(e) => {
+                            const newQuantity = parseInt(e.target.value);
+                            if (!isNaN(newQuantity)) {
+                                updateItemQuantity(item.id, newQuantity);
+                            }
+                        }}
+                        min="1"
+                        max={item.stock}
+                        className="w-16 text-center bg-background/70 border-primary/30"
+                        disabled={item.stock <= 0}
+                      />
+                      <Button variant="ghost" size="icon" onClick={() => updateItemQuantity(item.id, item.quantity + 1)} disabled={item.quantity >= item.stock || item.stock <= 0}>
+                        <PlusCircle className="h-5 w-5 text-primary" />
+                      </Button>
+                    </div>
+                    <p className="font-semibold text-lg text-foreground my-2 sm:my-0 sm:mr-4 sm:ml-4">
+                      الإجمالي: {((item.price || 0) * item.quantity).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}
+                    </p>
+                    <Button variant="ghost" size="icon" onClick={() => removeItemFromCart(item.id)} className="text-red-500 hover:text-red-700">
+                      <Trash2 className="h-5 w-5" />
+                    </Button>
+                  </Card>
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </motion.div>
 
-          <motion.div 
-            initial={{ opacity: 0, x: 50 }}
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="lg:w-1/3 p-8 bg-white dark:bg-slate-800 rounded-xl shadow-2xl h-fit sticky top-24"
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="lg:col-span-1"
           >
-            <h2 className="text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-6 border-b pb-4 border-slate-200 dark:border-slate-700">ملخص الطلب</h2>
-            <div className="space-y-3 mb-6">
-              <div className="flex justify-between text-slate-600 dark:text-slate-300">
-                <span>المجموع الفرعي</span>
-                <span>{formatPrice(subtotal)}</span>
-              </div>
-              <div className="flex justify-between text-slate-600 dark:text-slate-300">
-                <span>الشحن</span>
-                <span>{formatPrice(shippingCost)}</span>
-              </div>
-              <div className="flex justify-between text-xl font-bold text-slate-800 dark:text-slate-100 pt-3 border-t border-slate-200 dark:border-slate-700">
-                <span>الإجمالي</span>
-                <span>{formatPrice(total)}</span>
-              </div>
-            </div>
-            <Button 
-              size="lg" 
-              className="w-full bg-sky-500 hover:bg-sky-600 text-white btn-glow text-lg py-3"
-              onClick={() => navigate('/checkout')}
-            >
-              <CreditCard className="mr-2 rtl:ml-2 rtl:mr-0" />
-              المتابعة للدفع
-            </Button>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-4 text-center">
-              الضرائب والخصومات (إن وجدت) ستحسب عند الدفع.
-            </p>
+            <Card className="p-6 glassmorphism-card shadow-xl sticky top-24">
+              <CardHeader className="p-0 mb-6">
+                <CardTitle className="text-2xl font-bold text-primary text-center">ملخص الطلب</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 p-0">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>المجموع الفرعي</span>
+                  <span>{cartTotal.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>تكلفة الشحن</span>
+                  <span>{shippingCost.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}</span>
+                </div>
+                <hr className="my-2 border-border/50" />
+                <div className="flex justify-between text-xl font-bold text-foreground">
+                  <span>الإجمالي الكلي</span>
+                  <span>{totalWithShipping.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}</span>
+                </div>
+              </CardContent>
+              <CardFooter className="p-0 mt-8 flex flex-col space-y-3">
+                <Button onClick={handleCheckout} size="lg" className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-opacity text-lg py-3" disabled={cartItems.some(item => item.quantity > item.stock || item.stock <= 0) || cartItems.length === 0}>
+                  <CreditCard className="ml-2 h-5 w-5" /> المتابعة إلى الدفع
+                </Button>
+                {cartItems.some(item => item.quantity > item.stock || item.stock <= 0) && (
+                    <p className="text-xs text-red-500 text-center">يرجى تعديل الكميات للمنتجات غير المتوفرة أو التي تجاوزت المخزون.</p>
+                )}
+                <Link to="/products" className="w-full">
+                  <Button variant="outline" size="lg" className="w-full text-primary border-primary hover:bg-primary/10">
+                    <ArrowLeft className="ml-2 h-5 w-5" /> متابعة التسوق
+                  </Button>
+                </Link>
+              </CardFooter>
+            </Card>
           </motion.div>
         </div>
-      </motion.div>
+      )}
     </div>
   );
 };

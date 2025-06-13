@@ -1,4 +1,3 @@
-
 import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -28,24 +27,27 @@ export const OrderDetailsModalContent = ({ order, logoPreview, handleLogoUpload,
   };
 
   const safeOrder = order || {};
-  const customerInfo = safeOrder.customerInfo || {};
+  // --- بداية التعديلات ---
   const shippingInfo = safeOrder.shipping || {};
 
-  const displayName = customerInfo.name || shippingInfo.fullName || 'غير متوفر';
-  const displayEmail = customerInfo.email || safeOrder.userEmail || 'غير متوفر';
-  const displayPhone = customerInfo.phone || shippingInfo.phone || 'غير متوفر';
-  const displayAddress = customerInfo.address || shippingInfo.address || 'غير متوفر';
-  const displayCity = customerInfo.city || shippingInfo.city || 'غير متوفر';
-  const displayCountry = customerInfo.country || 'غير متوفر';
-  const displayPostalCode = customerInfo.postalCode || '';
-  const displayNotes = shippingInfo.notes || customerInfo.notes || '';
+  const displayName = shippingInfo.fullName || 'غير متوفر';
+  const displayEmail = safeOrder.userEmail || 'غير متوفر';
+  const displayPhone = shippingInfo.phone || 'غير متوفر';
+  const displayAddress = shippingInfo.address || 'غير متوفر';
+  const displayCity = shippingInfo.city || 'غير متوفر';
+  const displayCountry = shippingInfo.country || 'غير متوفر';
+  const displayPostalCode = shippingInfo.postalCode || '';
+  const displayNotes = shippingInfo.notes || '';
 
   const safeItems = safeOrder.items || [];
-  const subtotalAmount = typeof safeOrder.subtotalAmount !== 'undefined' ? safeOrder.subtotalAmount : 0;
-  const shippingCost = typeof safeOrder.shippingCost !== 'undefined' ? safeOrder.shippingCost : 0;
-  const totalAmount = typeof safeOrder.totalAmount !== 'undefined' ? safeOrder.totalAmount : (subtotalAmount + shippingCost);
+  
+  // نقرأ من الحقول الصحيحة القادمة من Firestore
+  const subtotalAmount = safeOrder.subtotal || 0;
+  const shippingCost = safeOrder.shippingCost || 0;
+  const totalAmount = safeOrder.total || 0;
   
   const statusInfo = getStatusInfo(safeOrder.status);
+  // --- نهاية التعديلات ---
 
   return (
     <>
